@@ -1,4 +1,4 @@
-"""Volt HTTP — full PySide6 workbench."""
+"""FLukeQuery — native PySide6 HTTP request workbench."""
 from __future__ import annotations
 
 import copy
@@ -25,8 +25,10 @@ from .material_widgets import (MaterialButton as QPushButton, MaterialLineEdit a
                                MaterialComboBox as QComboBox, MaterialCard, MaterialTabWidget as QTabWidget,
                                MaterialCheckBox as QCheckBox)
 
-APP_DIR = Path(os.getenv("APPDATA", Path.home() / ".config")) / "VoltHTTP"
+DATA_ROOT = Path(os.getenv("APPDATA", Path.home() / ".config"))
+APP_DIR = DATA_ROOT / "FLukeQuery"
 COLLECTIONS = APP_DIR / "requests.json"
+LEGACY_COLLECTIONS = DATA_ROOT / "VoltHTTP" / "requests.json"
 
 
 def label(text: str, name: str = "") -> QLabel:
@@ -159,7 +161,7 @@ class ThemeDialog(QDialog):
 
     def __init__(self, preset: str, colors: ThemeColors, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Volt HTTP · Theme")
+        self.setWindowTitle("FLukeQuery · Theme")
         self.setMinimumWidth(345)
         self.colors = colors
         layout = QVBoxLayout(self)
@@ -213,13 +215,19 @@ class ThemeDialog(QDialog):
             widget.setStyleSheet(f"QPushButton {{ background: {color}; color: {ink}; border: 1px solid #ffffff; border-radius: 8px; font-weight: 900; }}")
 
 
-class VoltWindow(QMainWindow):
+class FLukeQueryWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("FLukeQuery · Request Studio")
         self.resize(1520, 930)
         self.setMinimumSize(1000, 670)
-        self.settings = QSettings("VoltHTTP", "VoltHTTP")
+        self.settings = QSettings("FLukeQuery", "FLukeQuery")
+        # Preserve the user's existing theme choices under the former application ID.
+        if not self.settings.allKeys():
+            previous = QSettings("VoltHTTP", "VoltHTTP")
+            for key in previous.allKeys():
+                self.settings.setValue(key, previous.value(key))
+            self.settings.sync()
         self.theme_preset = str(self.settings.value("theme/preset", "Vivid"))
         try:
             self.theme_colors = ThemeColors(*[
@@ -666,8 +674,10 @@ class VoltWindow(QMainWindow):
         self.statusBar().showMessage("Copied POSIX cURL command (sensitive headers/auth omitted; for Git Bash or WSL)")
 
     def _read_saved(self) -> list[dict]:
+        # The former directory remains untouched. A new save writes FLukeQuery.
+        source = COLLECTIONS if COLLECTIONS.exists() else LEGACY_COLLECTIONS
         try:
-            data = json.loads(COLLECTIONS.read_text(encoding="utf-8"))
+            data = json.loads(source.read_text(encoding="utf-8"))
             return data if isinstance(data, list) else []
         except (FileNotFoundError, ValueError, OSError):
             return []
@@ -765,10 +775,10 @@ class VoltWindow(QMainWindow):
 
 def main() -> int:
     app = QApplication(sys.argv)
-    app.setApplicationName("VoltHTTP")
-    app.setOrganizationName("VoltHTTP")
+    app.setApplicationName("FLukeQuery")
+    app.setOrganizationName("FLukeQuery")
     app.setStyle("Fusion")
     app.setStyleSheet(STYLE)
-    window = VoltWindow()
+    window = FLukeQueryWindow()
     window.show()
     return app.exec()
