@@ -264,7 +264,7 @@ class FLukeQueryWindow(QMainWindow):
         top.setContentsMargins(25, 15, 25, 15)
         mark = QVBoxLayout()
         mark.setSpacing(1)
-        mark.addWidget(label("FLUKE  /  QUERY", "brand"))
+        mark.addWidget(label("FLuke - QUERY", "brand"))
         mark.addWidget(label("REQUEST STUDIO   ·   HTTPX ENGINE", "brandNote"))
         top.addLayout(mark)
         top.addStretch()

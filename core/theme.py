@@ -11,7 +11,7 @@ class ThemeColors:
 
 
 PRESETS = {
-    "Vivid": ThemeColors("#fff13f", "#ff43bf", "#26162e"),
+    "Vivid": ThemeColors("#fff13f", "#ff43bf", "#80314f"),
     "Electric": ThemeColors("#fcff36", "#ff00c8", "#170e2c"),
     "Classic": ThemeColors("#ffe45b", "#8629e6", "#5a2c7a"),
 }
