@@ -52,10 +52,26 @@ Saved requests live in `%APPDATA%\FLukeQuery\requests.json` on Windows (or `~/.c
 py -m pytest -q tests
 ```
 
-Tests use a local HTTP server; they make no external requests. Current suite: **29 tests**, covering all eight verbs, QUERY in three body modes, redirects, duplicate parameters, credentials, cURL, truncation, and theme generation. GUI source is compiled for syntax, but visual GUI execution requires a Windows machine with PySide6 installed.
+Tests use a local HTTP server; they make no external requests. Current suite: **31 tests**, covering all eight verbs, QUERY in three body modes, redirects, duplicate parameters, credentials, cURL, truncation, and theme generation. GUI source is compiled for syntax, but visual GUI execution requires a Windows machine with PySide6 installed.
 
 ## Material-style widgets (0.3 development)
 
 Reusable native Qt controls are in `core/material_widgets.py`: `MaterialButton`, `MaterialLineEdit`, `MaterialComboBox`, `MaterialCheckBox`, `MaterialCard`, `MaterialTabBar` and `MaterialTabWidget`. They use Qt controls rather than web-rendered widgets and preserve the existing theme picker. Hover elevation is animated on buttons; request and response panels use card elevation.
 
 `run.bat` now launches `python -m core` (or `py -m core`). Package imports are relative and the entry point also accepts direct-file execution from IDEs. Install dependencies with `install.bat` before launching. This development branch changes no HTTP transport semantics.
+
+## Translucent Material appearance
+
+**Theme ✦** now offers two independent settings:
+
+- **Surface glass (0–85%)** adjusts only the alpha channel of sidebar/cards,
+  input fields, toolbar, tabs and tonal buttons. Labels and body text stay opaque,
+  and the method-popup menu stays solid for legibility. Default: 55%.
+- **Window opacity (85–100%)** uses Qt's native top-level-window opacity on
+  platforms that support it. Values below 100% allow the desktop to show through,
+  but also fade text and controls. Default: 100% (crisp text).
+
+The root canvas has a subtle, palette-derived background gradient to make
+surface translucency visible. This is native alpha compositing, **not** Windows
+Acrylic or a desktop blur effect. Both settings are saved in QSettings and
+can be adjusted without restarting.
