@@ -1,4 +1,4 @@
-"""QSS generator for a vivid, configurable VoltHTTP palette (no Qt dependency)."""
+"""Material-inspired QSS palette for FLukeQuery (Qt-independent design tokens)."""
 from __future__ import annotations
 from dataclasses import dataclass
 
@@ -19,85 +19,201 @@ PRESETS = {
 
 def normalize_hex(value: str) -> str:
     value = value.strip()
-    if len(value) != 7 or value[0] != "#" or any(c not in "0123456789abcdefABCDEF" for c in value[1:]):
+    if len(value) != 7 or value[0] != "#" or any(ch not in "0123456789abcdefABCDEF" for ch in value[1:]):
         raise ValueError("Color must be a 6-digit hex value, e.g. #ff43bf")
     return value.lower()
 
 
 def blend(first: str, second: str, ratio: float) -> str:
-    """Linear RGB mixing for palette surfaces and edge sheen."""
+    """Mix two sRGB hex colors; existing public helper retained for imports/tests."""
     r = min(1.0, max(0.0, ratio))
-    a = [int(first[i:i+2], 16) for i in (1, 3, 5)]
-    b = [int(second[i:i+2], 16) for i in (1, 3, 5)]
-    return "#" + "".join(f"{round(x*(1-r)+y*r):02x}" for x, y in zip(a, b))
+    a = [int(first[i:i + 2], 16) for i in (1, 3, 5)]
+    b = [int(second[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(x * (1 - r) + y * r):02x}" for x, y in zip(a, b))
+
+
+def relative_luminance(color: str) -> float:
+    """sRGB relative luminance, useful for automatic text contrast."""
+    rgb = [int(color[i:i + 2], 16) / 255.0 for i in (1, 3, 5)]
+    rgb = [v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4 for v in rgb]
+    return sum(v * weight for v, weight in zip(rgb, (0.2126, 0.7152, 0.0722)))
+
+
+def contrast_ink(background: str) -> str:
+    black, white = "#1b1024", "#fffaff"
+    lum = relative_luminance(normalize_hex(background))
+    return black if (lum + 0.05) / (relative_luminance(black) + 0.05) >= (relative_luminance(white) + 0.05) / (lum + 0.05) else white
+
+
+@dataclass(frozen=True)
+class MaterialTokens:
+    background: str
+    surface: str
+    surface_alt: str
+    raised: str
+    field: str
+    border: str
+    border_focus: str
+    text: str
+    muted: str
+    accent: str
+    accent_ink: str
+    secondary: str
+    secondary_ink: str
+    hover: str
+    selected: str
+    sheen: str
+
+
+def tokens_for(theme: ThemeColors) -> MaterialTokens:
+    yellow, pink, base = (normalize_hex(theme.yellow), normalize_hex(theme.fuchsia),
+                          normalize_hex(theme.background))
+    dark = relative_luminance(base) < 0.23
+    text = "#fffaff" if dark else "#23152a"
+    return MaterialTokens(
+        background=base,
+        surface=blend(base, "#ffffff" if dark else "#000000", 0.13 if dark else 0.05),
+        surface_alt=blend(base, "#ffffff" if dark else "#000000", 0.085 if dark else 0.03),
+        raised=blend(base, "#ffffff" if dark else "#000000", 0.19 if dark else 0.11),
+        field=blend(base, "#000000" if dark else "#ffffff", 0.25 if dark else 0.76),
+        border=blend(base, "#ffffff" if dark else "#000000", 0.24 if dark else 0.20),
+        border_focus=yellow,
+        text=text,
+        muted=blend(text, base, 0.34 if dark else 0.39),
+        accent=yellow,
+        accent_ink=contrast_ink(yellow),
+        secondary=pink,
+        secondary_ink=contrast_ink(pink),
+        hover=blend(base, pink, 0.32 if dark else 0.18),
+        selected=blend(base, pink, 0.24 if dark else 0.13),
+        sheen=blend(base, "#ffffff", 0.23 if dark else 0.12),
+    )
 
 
 def style_for(theme: ThemeColors) -> str:
-    y, p, base = (normalize_hex(theme.yellow), normalize_hex(theme.fuchsia), normalize_hex(theme.background))
-    surface = blend(base, "#ffffff", 0.090)
-    lifted = blend(base, "#ffffff", 0.135)
-    input_bg = blend(base, "#000000", 0.28)
-    sidebar = blend(base, "#000000", 0.10)
-    border = blend(base, p, 0.27)
-    bright_border = blend(base, p, 0.50)
-    muted = blend(base, "#ffffff", 0.64)
-    faint = blend(base, "#ffffff", 0.75)
-    pink_soft = blend(p, "#ffffff", 0.45)
-    pink_deep = blend(p, "#000000", 0.38)
-    yellow_light = blend(y, "#ffffff", 0.64)
-    # Background colors remain user-customizable; adapt base text on light selections.
-    lum = sum(int(base[i:i+2], 16)*w for i, w in zip((1,3,5), (0.2126, 0.7152, 0.0722)))
-    ink = "#211226" if lum > 148 else "#fff6ff"
-    field_ink = "#fff6ff" if lum <= 148 else "#211226"
-    return f'''
-* {{ font-family: 'Inter', 'Segoe UI', Arial, sans-serif; font-size: 12px; }}
-QMainWindow, QWidget#root {{ background: {base}; color: {ink}; }}
-QWidget {{ color: {ink}; }}
-QFrame#topbar {{ background: qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 {lifted}, stop:0.28 {surface}, stop:0.72 {base}, stop:1 {blend(base,p,0.18)}); border-bottom: 2px solid {bright_border}; }}
-QLabel#brand {{ color: {y}; font-size: 24px; font-weight: 900; letter-spacing: 1px; }}
-QLabel#brandNote {{ color: {pink_soft}; font-size: 10px; letter-spacing: 1px; }}
-QLabel#sectionTitle {{ font-size: 11px; font-weight: 900; color: {pink_soft}; letter-spacing: 1.2px; }}
-QLabel#hint {{ color: {muted}; font-size: 11px; }}
-QFrame#sidebar {{ background: {sidebar}; border-right: 1px solid {border}; }}
-QFrame#panel {{ background: {surface}; border: 1px solid {border}; border-radius: 12px; }}
-QFrame#responsePanel {{ background: {blend(base,'#ffffff',0.055)}; border: 1px solid {border}; border-radius: 12px; }}
-QLineEdit, QPlainTextEdit, QTextEdit, QComboBox, QSpinBox, QDoubleSpinBox, QTableWidget, QListWidget {{
-  background: {input_bg}; border: 1px solid {bright_border}; border-radius: 7px; color: {field_ink};
-  selection-background-color: {pink_deep}; selection-color: white; padding: 7px;
+    t = tokens_for(theme)
+    y, p = t.accent, t.secondary
+    pink_bright = blend(p, "#ffffff", 0.36)
+    raised_light = blend(t.raised, "#ffffff", 0.07)
+    return f"""
+* {{ font-family: 'Segoe UI Variable', 'Segoe UI', Arial, sans-serif; font-size: 13px; }}
+QMainWindow, QWidget#root {{ background: {t.background}; color: {t.text}; }}
+QWidget {{ color: {t.text}; }}
+QFrame#topbar {{
+    background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
+        stop:0 {t.sheen},stop:0.10 {t.raised},stop:0.86 {t.surface_alt},stop:1 {t.surface_alt});
+    border: none; border-bottom: 1px solid {t.border};
 }}
-QLineEdit:focus, QPlainTextEdit:focus, QComboBox:focus, QTableWidget:focus {{ border: 2px solid {y}; }}
-QPlainTextEdit, QTextEdit {{ font-family: 'Cascadia Code', 'Consolas', monospace; font-size: 12px; }}
-QComboBox::drop-down {{ border: none; width: 26px; }}
-QComboBox QAbstractItemView {{ background: {surface}; color: {ink}; selection-background-color: {pink_deep}; border: 1px solid {bright_border}; }}
-QPushButton {{ background: {lifted}; border: 1px solid {bright_border}; color: {ink}; padding: 8px 13px; border-radius: 8px; font-weight: 700; }}
-QPushButton:hover {{ background: {blend(base,p,0.36)}; border-color: {p}; }}
-QPushButton:pressed {{ background: {blend(base,p,0.51)}; }}
-QPushButton:disabled {{ color: {muted}; background: {surface}; border-color: {border}; }}
-QPushButton#sendButton {{ background: qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 {yellow_light},stop:0.34 {y},stop:1 {blend(y,'#bf7514',0.31)}); border: 1px solid {yellow_light}; color: #2b142c; font-weight: 900; font-size: 14px; padding: 11px 25px; }}
-QPushButton#sendButton:hover {{ background: {yellow_light}; }}
-QPushButton#pinkButton {{ background: qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 {pink_soft},stop:0.35 {p},stop:1 {pink_deep}); border: 1px solid {pink_soft}; color: #25101c; font-weight: 800; }}
-QPushButton#pinkButton:hover {{ background: {pink_soft}; }}
-QTabWidget::pane {{ border: 1px solid {border}; border-radius: 8px; background: {surface}; top: -1px; }}
-QTabBar::tab {{ background: {lifted}; color: {faint}; padding: 11px 15px; margin-right: 2px; border: 1px solid {border}; border-bottom: 0; border-top-left-radius: 6px; border-top-right-radius: 6px; font-weight: 700; }}
-QTabBar::tab:selected {{ color: {y}; background: {blend(base,p,0.28)}; border-top: 3px solid {p}; }}
-QTabBar::tab:hover {{ color: {yellow_light}; }}
-QHeaderView::section {{ background: {lifted}; color: {ink}; border: 0; padding: 7px; border-bottom: 1px solid {bright_border}; font-weight: 700; }}
-QTableWidget {{ gridline-color: {border}; padding: 0; alternate-background-color: {surface}; }}
-QTableWidget::item {{ padding: 4px; }}
-QCheckBox {{ color: {ink}; spacing: 8px; }}
-QCheckBox::indicator {{ width: 17px; height: 17px; border: 1px solid {p}; border-radius: 4px; background: {input_bg}; }}
-QCheckBox::indicator:checked {{ background: {y}; border: 2px solid {p}; }}
-QListWidget {{ background: transparent; border: none; }}
-QListWidget::item {{ padding: 10px 8px; border-radius: 6px; margin: 1px; }}
-QListWidget::item:selected {{ background: {blend(base,p,0.3)}; border-left: 3px solid {y}; }}
-QListWidget::item:hover {{ background: {blend(base,p,0.16)}; }}
-QSplitter::handle {{ background: transparent; width: 7px; }}
-QScrollBar:vertical {{ background: {base}; width: 10px; }}
-QScrollBar::handle:vertical {{ background: {bright_border}; border-radius: 5px; min-height: 24px; }}
+QLabel#brand {{ color: {y}; font-size: 25px; font-weight: 800; }}
+QLabel#brandNote {{ color: {pink_bright}; font-size: 10px; font-weight: 600; }}
+QLabel#sectionTitle {{ color: {pink_bright}; font-size: 11px; font-weight: 800; }}
+QLabel#hint {{ color: {t.muted}; font-size: 11px; }}
+QFrame#sidebar {{
+    background: {t.surface_alt}; border: none;
+    border-right: 1px solid {t.border};
+}}
+QFrame#panel, QFrame#responsePanel {{
+    background: {t.surface}; border: 1px solid {t.border}; border-radius: 19px;
+}}
+QLineEdit, QPlainTextEdit, QTextEdit, QComboBox, QSpinBox, QDoubleSpinBox,
+QTableWidget {{
+    background: {t.field}; color: {t.text}; border: 1px solid {t.border};
+    border-radius: 11px; padding: 8px 11px;
+    selection-background-color: {t.secondary}; selection-color: {t.secondary_ink};
+}}
+QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus, QComboBox:focus,
+QSpinBox:focus, QDoubleSpinBox:focus, QTableWidget:focus {{
+    border: 2px solid {t.border_focus};
+}}
+QLineEdit:disabled, QComboBox:disabled, QPlainTextEdit:disabled {{
+    background: {t.surface_alt}; color: {t.muted};
+}}
+QPlainTextEdit, QTextEdit {{
+    font-family: 'Cascadia Code', 'Consolas', monospace; font-size: 12px;
+}}
+QComboBox {{ padding-right: 30px; }}
+QComboBox#methodSelector {{
+    background: {t.raised}; border: 1px solid {p};
+    color: {y}; font-weight: 800; border-radius: 13px;
+}}
+QComboBox::drop-down {{ border: none; width: 27px; }}
+QComboBox QAbstractItemView {{
+    background: {t.raised}; color: {t.text};
+    border: 1px solid {t.border}; border-radius: 10px;
+    padding: 5px; outline: none;
+    selection-background-color: {t.selected}; selection-color: {y};
+}}
+QComboBox QAbstractItemView::item {{
+    padding: 7px 11px; border-radius: 7px; min-height: 29px;
+}}
+QPushButton {{
+    color: {t.text}; background: {t.raised};
+    border: 1px solid {t.border}; border-radius: 12px;
+    padding: 8px 16px; font-weight: 650;
+}}
+QPushButton:hover {{ background: {t.hover}; border: 1px solid {p}; }}
+QPushButton:pressed {{ background: {t.selected}; border: 1px solid {y}; }}
+QPushButton:focus {{ border: 2px solid {y}; }}
+QPushButton:disabled {{
+    color: {t.muted}; background: {t.surface_alt}; border: 1px solid {t.border};
+}}
+QPushButton#sendButton {{
+    background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
+        stop:0 {blend(y, "#ffffff", 0.36)}, stop:0.22 {y}, stop:1 {blend(y, "#000000", 0.13)});
+    color: {t.accent_ink}; border: 1px solid {blend(y, "#ffffff", 0.30)};
+    font-weight: 800; font-size: 14px; border-radius: 14px; padding: 9px 24px;
+}}
+QPushButton#sendButton:hover {{ background: {blend(y, "#ffffff", 0.20)}; }}
+QPushButton#sendButton:disabled {{ background: {t.raised}; color: {t.muted}; border: 1px solid {t.border}; }}
+QPushButton#pinkButton {{
+    background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
+        stop:0 {pink_bright},stop:0.20 {p},stop:1 {blend(p, "#000000", 0.16)});
+    border: 1px solid {pink_bright}; color: {t.secondary_ink};
+    font-weight: 800; border-radius: 12px;
+}}
+QPushButton#pinkButton:hover {{ background: {pink_bright}; }}
+QTabWidget::pane {{ background: transparent; border: none; top: 0px; }}
+QTabBar {{ background: transparent; border: none; }}
+QTabBar::tab {{
+    background: transparent; color: {t.muted};
+    padding: 10px 18px; margin: 2px 5px 7px 0;
+    border: 1px solid transparent; border-radius: 12px; font-weight: 650;
+}}
+QTabBar::tab:selected {{
+    background: {t.selected}; color: {y};
+    border: 1px solid {blend(t.border, p, 0.5)};
+    font-weight: 800;
+}}
+QTabBar::tab:hover:!selected {{ background: {t.hover}; color: {t.text}; }}
+QHeaderView::section {{
+    background: {t.raised}; color: {t.text}; border: none;
+    border-bottom: 1px solid {t.border}; padding: 9px 12px; font-weight: 700;
+}}
+QTableWidget {{ gridline-color: {t.border}; alternate-background-color: {t.surface_alt}; padding: 0; }}
+QTableWidget::item {{ padding: 5px; }}
+QTableWidget::item:selected {{ background: {t.selected}; color: {t.text}; }}
+QCheckBox {{ spacing: 10px; color: {t.text}; background: transparent; }}
+QCheckBox::indicator {{ width: 19px; height: 19px; }}
+QListWidget {{ background: transparent; border: none; outline: none; }}
+QListWidget::item {{ padding: 10px 12px; border-radius: 9px; margin: 2px; }}
+QListWidget::item:selected {{
+    background: {t.selected}; color: {y}; border-left: 3px solid {y};
+}}
+QListWidget::item:hover:!selected {{ background: {t.hover}; }}
+QSplitter::handle {{ background: transparent; }}
+QScrollBar:vertical {{ background: transparent; width: 11px; margin: 2px 1px; }}
+QScrollBar::handle:vertical {{ background: {t.border}; border-radius: 5px; min-height: 28px; }}
+QScrollBar::handle:vertical:hover {{ background: {p}; }}
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
-QStatusBar {{ background: {base}; color: {faint}; border-top: 1px solid {border}; }}
-QToolTip {{ background: {lifted}; color: {ink}; border: 1px solid {p}; padding: 5px; }}
-'''
+QScrollBar:horizontal {{ background: transparent; height: 11px; }}
+QScrollBar::handle:horizontal {{ background: {t.border}; border-radius: 5px; min-width: 28px; }}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0; }}
+QStatusBar {{ background: {t.surface_alt}; color: {t.muted}; border-top: 1px solid {t.border}; }}
+QToolTip {{
+    background: {raised_light}; color: {t.text}; border: 1px solid {p};
+    border-radius: 9px; padding: 7px 10px;
+}}
+"""
 
 
-STYLE = style_for(PRESETS["Classic"])
+STYLE = style_for(PRESETS["Vivid"])
