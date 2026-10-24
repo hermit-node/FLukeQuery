@@ -44,7 +44,7 @@ Tested with Python 3.11+ syntax; requires a current PySide6-supported Python ver
 - Uses HTTPX's normal environment proxy and certificate behavior unless overridden. No telemetry.
 - Credentials entered in the Auth tab are kept in memory for the current session.
 
-Saved requests live in `%APPDATA%\VoltHTTP\requests.json` on Windows (or `~/.config/VoltHTTP/requests.json` on Unix).
+Saved requests live in `%APPDATA%\FLukeQuery\requests.json` on Windows (or `~/.config/FLukeQuery/requests.json` on Unix). On first launch the application imports previous theme settings from Volt HTTP if no FLukeQuery settings exist. Existing saved requests are loaded from the old directory when the new collection file does not exist, and new saves are written to the FLukeQuery directory. The old files are never deleted.
 
 ## Verify transport tests
 
@@ -52,10 +52,10 @@ Saved requests live in `%APPDATA%\VoltHTTP\requests.json` on Windows (or `~/.con
 py -m pytest -q tests
 ```
 
-Tests use a local HTTP server; they make no external requests. Current suite: **26 tests**, covering all eight verbs, QUERY in three body modes, redirects, duplicate parameters, credentials, cURL, truncation, and theme generation. GUI source is compiled for syntax, but visual GUI execution requires a Windows machine with PySide6 installed.
+Tests use a local HTTP server; they make no external requests. Current suite: **29 tests**, covering all eight verbs, QUERY in three body modes, redirects, duplicate parameters, credentials, cURL, truncation, and theme generation. GUI source is compiled for syntax, but visual GUI execution requires a Windows machine with PySide6 installed.
 
 ## Material-style widgets (0.3 development)
 
-Reusable native Qt controls are in `core/material_widgets.py`: `MaterialButton`, `MaterialLineEdit`, `MaterialComboBox`, `MaterialCard`, `MaterialTabBar` and `MaterialTabWidget`. They use Qt controls rather than web-rendered widgets and preserve the existing theme picker. Hover elevation is animated on buttons; request and response panels use card elevation.
+Reusable native Qt controls are in `core/material_widgets.py`: `MaterialButton`, `MaterialLineEdit`, `MaterialComboBox`, `MaterialCheckBox`, `MaterialCard`, `MaterialTabBar` and `MaterialTabWidget`. They use Qt controls rather than web-rendered widgets and preserve the existing theme picker. Hover elevation is animated on buttons; request and response panels use card elevation.
 
-`run.bat` now launches `python -m core` (or `py -m core`). All intra-package imports are relative. Install dependencies with `install.bat` before launching. This development branch changes no HTTP transport semantics.
+`run.bat` now launches `python -m core` (or `py -m core`). Package imports are relative and the entry point also accepts direct-file execution from IDEs. Install dependencies with `install.bat` before launching. This development branch changes no HTTP transport semantics.
