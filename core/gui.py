@@ -22,7 +22,8 @@ from PySide6.QtWidgets import (
 from .core import SUPPORTED_METHODS, RequestCancelled, RequestSpec, ResponseData, curl_command, execute, format_content
 from .theme import PRESETS, STYLE, ThemeColors, blend, normalize_hex, style_for
 from .material_widgets import (MaterialButton as QPushButton, MaterialLineEdit as QLineEdit,
-                               MaterialComboBox as QComboBox, MaterialCard, MaterialTabWidget as QTabWidget)
+                               MaterialComboBox as QComboBox, MaterialCard, MaterialTabWidget as QTabWidget,
+                               MaterialCheckBox as QCheckBox)
 
 APP_DIR = Path(os.getenv("APPDATA", Path.home() / ".config")) / "VoltHTTP"
 COLLECTIONS = APP_DIR / "requests.json"
@@ -215,9 +216,9 @@ class ThemeDialog(QDialog):
 class VoltWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Volt HTTP · Request Studio")
+        self.setWindowTitle("FLukeQuery · Request Studio")
         self.resize(1520, 930)
-        self.setMinimumSize(990, 630)
+        self.setMinimumSize(1000, 670)
         self.settings = QSettings("VoltHTTP", "VoltHTTP")
         self.theme_preset = str(self.settings.value("theme/preset", "Vivid"))
         try:
@@ -252,11 +253,11 @@ class VoltWindow(QMainWindow):
         banner = QFrame()
         banner.setObjectName("topbar")
         top = QHBoxLayout(banner)
-        top.setContentsMargins(23, 15, 23, 15)
+        top.setContentsMargins(25, 15, 25, 15)
         mark = QVBoxLayout()
         mark.setSpacing(1)
-        mark.addWidget(label("VOLT  /  HTTP", "brand"))
-        mark.addWidget(label("REQUEST STUDIO   ·   POWERED BY HTTPX", "brandNote"))
+        mark.addWidget(label("FLUKE  /  QUERY", "brand"))
+        mark.addWidget(label("REQUEST STUDIO   ·   HTTPX ENGINE", "brandNote"))
         top.addLayout(mark)
         top.addStretch()
         top.addWidget(button("Theme ✦", self.configure_theme))
@@ -267,16 +268,19 @@ class VoltWindow(QMainWindow):
 
         request_strip = QFrame()
         strip = QHBoxLayout(request_strip)
-        strip.setContentsMargins(19, 16, 19, 13)
+        strip.setContentsMargins(18, 16, 18, 16)
         strip.setSpacing(10)
         self.method = QComboBox()
+        self.method.setObjectName("methodSelector")
+        self.method.setAccessibleName("HTTP method")
         self.method.addItems(SUPPORTED_METHODS)
         self.method.currentTextChanged.connect(self._method_changed)
-        self.method.setMinimumWidth(109)
+        self.method.setFixedWidth(143)
         self.method.setFixedHeight(45)
         strip.addWidget(self.method)
         self.url = QLineEdit("https://httpbin.org/get")
         self.url.setPlaceholderText("https://api.example.com/v1/resource")
+        self.url.setAccessibleName("Request URL")
         self.url.setFixedHeight(45)
         strip.addWidget(self.url, 1)
         self.send = button("➜  Send", self.send_request, "sendButton")
@@ -291,10 +295,11 @@ class VoltWindow(QMainWindow):
 
         overall = QSplitter(Qt.Orientation.Horizontal)
         overall.setChildrenCollapsible(False)
+        overall.setHandleWidth(11)
         main.addWidget(overall, 1)
         self.sidebar = QFrame()
         self.sidebar.setObjectName("sidebar")
-        side = layout_column(self.sidebar, 13, 8)
+        side = layout_column(self.sidebar, 15, 9)
         side.addWidget(label("SAVED REQUESTS", "sectionTitle"))
         self.saved_list = QListWidget()
         self.saved_list.itemClicked.connect(self.load_sidebar_item)
@@ -313,10 +318,11 @@ class VoltWindow(QMainWindow):
 
         work_area = QSplitter(Qt.Orientation.Horizontal)
         work_area.setChildrenCollapsible(False)
+        work_area.setHandleWidth(13)
         overall.addWidget(work_area)
         self.request_panel = MaterialCard()
         self.request_panel.setObjectName("panel")
-        req_layout = layout_column(self.request_panel, 13, 10)
+        req_layout = layout_column(self.request_panel, 17, 11)
         req_layout.addWidget(label("REQUEST CONFIGURATION", "sectionTitle"))
         self.request_tabs = QTabWidget()
         req_layout.addWidget(self.request_tabs, 1)
@@ -326,12 +332,11 @@ class VoltWindow(QMainWindow):
 
         self.response_panel = MaterialCard()
         self.response_panel.setObjectName("responsePanel")
-        resp_layout = layout_column(self.response_panel, 13, 10)
+        resp_layout = layout_column(self.response_panel, 17, 11)
         heading = QHBoxLayout()
         heading.addWidget(label("RESPONSE INSPECTOR", "sectionTitle"))
         heading.addStretch()
-        self.response_state = label("NOT SENT")
-        self.response_state.setStyleSheet("color: #c4adc8; font-weight: 800; padding: 6px;")
+        self.response_state = label("NOT SENT", "responseState")
         heading.addWidget(self.response_state)
         resp_layout.addLayout(heading)
         meta = QHBoxLayout()
