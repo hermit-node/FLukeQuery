@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QDialogButtonBox, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QHeaderView, QInputDialog,
     QLabel, QLineEdit, QListWidget, QListWidgetItem, QMainWindow,
     QMessageBox, QPlainTextEdit, QPushButton, QSplitter, QStackedWidget,
-    QStatusBar, QTabWidget, QTableWidget, QTableWidgetItem,
+    QSlider, QStatusBar, QTabWidget, QTableWidget, QTableWidgetItem,
     QVBoxLayout, QWidget,
 )
 
@@ -159,7 +159,8 @@ class ThemeDialog(QDialog):
     """Configures one of three themes or custom yellow / fuchsia / background colors."""
     FIELDS = (("yellow", "Yellow accent"), ("fuchsia", "Fuchsia accent"), ("background", "Background"))
 
-    def __init__(self, preset: str, colors: ThemeColors, parent=None):
+    def __init__(self, preset: str, colors: ThemeColors,
+                 glass: int = 55, window_opacity: int = 100, parent=None):
         super().__init__(parent)
         self.setWindowTitle("FLukeQuery · Theme")
         self.setMinimumWidth(345)
@@ -181,7 +182,39 @@ class ThemeDialog(QDialog):
             self.swatches[key] = pick
             row.addRow(caption, pick)
         layout.addLayout(row)
-        layout.addWidget(QLabel("Yellow: action/focus  ·  Fuchsia: highlights  ·  Background: panels"))
+        layout.addWidget(QLabel("Yellow: action/focus  ·  Fuchsia: highlights  ·  Background: base"))
+        opacity_form = QFormLayout()
+        self.glass_slider = QSlider(Qt.Orientation.Horizontal)
+        self.glass_slider.setRange(0, 85)
+        self.glass_slider.setSingleStep(5)
+        self.glass_slider.setPageStep(10)
+        self.glass_slider.setValue(max(0, min(85, int(glass))))
+        self.glass_slider.setToolTip("Translucency of panels, buttons and fields. Text stays opaque.")
+        self.glass_label = QLabel(f"{self.glass_slider.value()}%")
+        self.glass_label.setMinimumWidth(37)
+        glass_row = QHBoxLayout()
+        glass_row.addWidget(self.glass_slider, 1)
+        glass_row.addWidget(self.glass_label)
+        opacity_form.addRow("Surface glass", glass_row)
+        self.glass_slider.valueChanged.connect(lambda value: self.glass_label.setText(f"{value}%"))
+
+        self.window_slider = QSlider(Qt.Orientation.Horizontal)
+        self.window_slider.setRange(85, 100)
+        self.window_slider.setValue(max(85, min(100, int(window_opacity))))
+        self.window_slider.setToolTip("Windows-level whole-window opacity; also fades text and controls.")
+        self.window_label = QLabel(f"{self.window_slider.value()}%")
+        self.window_label.setMinimumWidth(37)
+        window_row = QHBoxLayout()
+        window_row.addWidget(self.window_slider, 1)
+        window_row.addWidget(self.window_label)
+        opacity_form.addRow("Window opacity", window_row)
+        self.window_slider.valueChanged.connect(lambda value: self.window_label.setText(f"{value}%"))
+        layout.addLayout(opacity_form)
+        hint = QLabel("Surface glass reveals the layered FLukeQuery backdrop. "
+                      "Window opacity allows the desktop behind to show through, "
+                      "but also fades text; 100% retains sharp text.")
+        hint.setWordWrap(True)
+        layout.addWidget(hint)
         actions = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         actions.accepted.connect(self.accept)
         actions.rejected.connect(self.reject)
@@ -229,6 +262,13 @@ class FLukeQueryWindow(QMainWindow):
                 self.settings.setValue(key, previous.value(key))
             self.settings.sync()
         self.theme_preset = str(self.settings.value("theme/preset", "Vivid"))
+        def read_setting_int(key: str, default: int, low: int, high: int) -> int:
+            try:
+                return max(low, min(high, int(self.settings.value(key, default))))
+            except (ValueError, TypeError):
+                return default
+        self.glass_percent = read_setting_int("theme/glass", 55, 0, 85)
+        self.window_opacity_percent = read_setting_int("theme/window_opacity", 100, 85, 100)
         try:
             self.theme_colors = ThemeColors(*[
                 normalize_hex(str(self.settings.value("theme/" + key, getattr(PRESETS["Vivid"], key))))
@@ -238,7 +278,8 @@ class FLukeQueryWindow(QMainWindow):
             self.theme_preset, self.theme_colors = "Vivid", PRESETS["Vivid"]
         if self.theme_preset in PRESETS and self.settings.value("theme/yellow") is None:
             self.theme_colors = PRESETS[self.theme_preset]
-        QApplication.instance().setStyleSheet(style_for(self.theme_colors))
+        QApplication.instance().setStyleSheet(style_for(self.theme_colors, self.glass_percent))
+        self.setWindowOpacity(self.window_opacity_percent / 100.0)
         self.pool = QThreadPool(self)
         self.pool.setMaxThreadCount(2)
         self.active_worker: HttpWorker | None = None
@@ -488,15 +529,21 @@ class FLukeQueryWindow(QMainWindow):
         self.response_tabs.addTab(self.response_redirects, "Redirects")
 
     def configure_theme(self):
-        dialog = ThemeDialog(self.theme_preset, self.theme_colors, self)
+        dialog = ThemeDialog(self.theme_preset, self.theme_colors,
+                             self.glass_percent, self.window_opacity_percent, self)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         self.theme_colors = dialog.colors
         self.theme_preset = dialog.preset_box.currentText()
+        self.glass_percent = dialog.glass_slider.value()
+        self.window_opacity_percent = dialog.window_slider.value()
         for key in ("yellow", "fuchsia", "background"):
             self.settings.setValue("theme/" + key, getattr(self.theme_colors, key))
         self.settings.setValue("theme/preset", self.theme_preset)
-        QApplication.instance().setStyleSheet(style_for(self.theme_colors))
+        self.settings.setValue("theme/glass", self.glass_percent)
+        self.settings.setValue("theme/window_opacity", self.window_opacity_percent)
+        QApplication.instance().setStyleSheet(style_for(self.theme_colors, self.glass_percent))
+        self.setWindowOpacity(self.window_opacity_percent / 100.0)
         self.json_highlighter.set_palette(self.theme_colors)
         self.response_highlighter.set_palette(self.theme_colors)
         self.statusBar().showMessage(f"Theme applied: {self.theme_preset} · preferences saved")
