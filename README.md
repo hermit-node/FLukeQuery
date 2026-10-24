@@ -1,4 +1,4 @@
-# Volt HTTP — Request Studio
+# FLukeQuery — Request Studio
 
 A standalone-source, desktop HTTP request client for Windows, built with **PySide6 + HTTPX**. Brighter violet panels, saturated fuchsia gradients, lemon-yellow interaction highlights, subtle sheen. The yellow, fuchsia and background colors are customizable.
 
@@ -8,7 +8,7 @@ Install dependencies into your existing Python environment (no virtualenv requir
 
 ```powershell
 py -m pip install -r requirements.txt
-py -m volthttp
+py -m core
 ```
 
 Or double-click `install.bat` once, then `run.bat` to launch. Both use the Windows Python launcher (`py`) when available, or `python` otherwise.
@@ -53,3 +53,9 @@ py -m pytest -q tests
 ```
 
 Tests use a local HTTP server; they make no external requests. Current suite: **26 tests**, covering all eight verbs, QUERY in three body modes, redirects, duplicate parameters, credentials, cURL, truncation, and theme generation. GUI source is compiled for syntax, but visual GUI execution requires a Windows machine with PySide6 installed.
+
+## Material-style widgets (0.3 development)
+
+Reusable native Qt controls are in `core/material_widgets.py`: `MaterialButton`, `MaterialLineEdit`, `MaterialComboBox`, `MaterialCard`, `MaterialTabBar` and `MaterialTabWidget`. They use Qt controls rather than web-rendered widgets and preserve the existing theme picker. Hover elevation is animated on buttons; request and response panels use card elevation.
+
+`run.bat` now launches `python -m core` (or `py -m core`). All intra-package imports are relative. Install dependencies with `install.bat` before launching. This development branch changes no HTTP transport semantics.
