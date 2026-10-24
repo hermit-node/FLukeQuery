@@ -1,3 +1,2 @@
-"""Volt HTTP — PySide6 + HTTPX client."""
-__version__ = "0.2.0"
-import gui
+"""FLukeQuery HTTP request client package."""
+__version__ = "0.3.0"
