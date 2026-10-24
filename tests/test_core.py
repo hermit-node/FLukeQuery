@@ -6,7 +6,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
-from volthttp.core import (
+from core.core import (
     PREVIEW_LIMIT, SUPPORTED_METHODS, RequestCancelled, RequestSpec, curl_command,
     execute, format_content, prepare,
 )
@@ -258,7 +258,7 @@ def test_direct_and_imported_unsupported_method():
 
 
 def test_theme_config_and_presets():
-    from volthttp.theme import PRESETS, ThemeColors, style_for
+    from core.theme import PRESETS, ThemeColors, style_for
     for key, colors in PRESETS.items():
         stylesheet = style_for(colors)
         assert colors.yellow in stylesheet and colors.fuchsia in stylesheet
