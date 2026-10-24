@@ -19,8 +19,10 @@ from PySide6.QtWidgets import (
     QVBoxLayout, QWidget,
 )
 
-from core import SUPPORTED_METHODS, RequestCancelled, RequestSpec, ResponseData, curl_command, execute, format_content
-from theme import PRESETS, STYLE, ThemeColors, blend, normalize_hex, style_for
+from .core import SUPPORTED_METHODS, RequestCancelled, RequestSpec, ResponseData, curl_command, execute, format_content
+from .theme import PRESETS, STYLE, ThemeColors, blend, normalize_hex, style_for
+from .material_widgets import (MaterialButton as QPushButton, MaterialLineEdit as QLineEdit,
+                               MaterialComboBox as QComboBox, MaterialCard, MaterialTabWidget as QTabWidget)
 
 APP_DIR = Path(os.getenv("APPDATA", Path.home() / ".config")) / "VoltHTTP"
 COLLECTIONS = APP_DIR / "requests.json"
@@ -312,7 +314,7 @@ class VoltWindow(QMainWindow):
         work_area = QSplitter(Qt.Orientation.Horizontal)
         work_area.setChildrenCollapsible(False)
         overall.addWidget(work_area)
-        self.request_panel = QFrame()
+        self.request_panel = MaterialCard()
         self.request_panel.setObjectName("panel")
         req_layout = layout_column(self.request_panel, 13, 10)
         req_layout.addWidget(label("REQUEST CONFIGURATION", "sectionTitle"))
@@ -322,7 +324,7 @@ class VoltWindow(QMainWindow):
         self.request_panel.setMinimumWidth(360)
         work_area.addWidget(self.request_panel)
 
-        self.response_panel = QFrame()
+        self.response_panel = MaterialCard()
         self.response_panel.setObjectName("responsePanel")
         resp_layout = layout_column(self.response_panel, 13, 10)
         heading = QHBoxLayout()
