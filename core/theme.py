@@ -32,6 +32,13 @@ def blend(first: str, second: str, ratio: float) -> str:
     return "#" + "".join(f"{round(x * (1 - r) + y * r):02x}" for x, y in zip(a, b))
 
 
+def rgba(color: str, opacity: float) -> str:
+    """Qt QSS rgba color, with an integer 0–255 alpha channel."""
+    c = normalize_hex(color)
+    alpha = round(min(1.0, max(0.0, float(opacity))) * 255)
+    return f"rgba({int(c[1:3], 16)}, {int(c[3:5], 16)}, {int(c[5:7], 16)}, {alpha})"
+
+
 def relative_luminance(color: str) -> float:
     """sRGB relative luminance, useful for automatic text contrast."""
     rgb = [int(color[i:i + 2], 16) / 255.0 for i in (1, 3, 5)]
@@ -90,18 +97,39 @@ def tokens_for(theme: ThemeColors) -> MaterialTokens:
     )
 
 
-def style_for(theme: ThemeColors) -> str:
+def style_for(theme: ThemeColors, glass: int = 55) -> str:
+    """Return a material-style palette with adjustable *surface* translucency.
+
+    glass=0 is opaque; 85 has the most transparent surfaces.
+    This changes child surfaces only, not the window's desktop opacity.
+    """
+    glass = max(0, min(85, int(glass)))
+    panel_alpha = 1 - glass * 0.0065
+    sidebar_alpha = 1 - glass * 0.0071
+    field_alpha = 1 - glass * 0.0038
+    bar_alpha = 1 - glass * 0.0049
+    tab_alpha = 1 - glass * 0.0065
     t = tokens_for(theme)
     y, p = t.accent, t.secondary
     pink_bright = blend(p, "#ffffff", 0.36)
     raised_light = blend(t.raised, "#ffffff", 0.07)
+    background_start = blend(t.background, t.secondary, 0.17)
+    background_middle = blend(t.background, "#ffffff", 0.045)
+    background_end = blend(t.background, t.accent, 0.11)
     return f"""
 * {{ font-family: 'Segoe UI Variable', 'Segoe UI', Arial, sans-serif; font-size: 13px; }}
-QMainWindow, QWidget#root {{ background: {t.background}; color: {t.text}; }}
+QMainWindow {{ background: {t.background}; color: {t.text}; }}
+QWidget#root {{
+    background: qlineargradient(x1:0,y1:0,x2:1,y2:1,
+        stop:0 {background_start},stop:0.38 {background_middle},
+        stop:0.70 {t.background},stop:1 {background_end});
+    color: {t.text};
+}}
 QWidget {{ color: {t.text}; }}
 QFrame#topbar {{
     background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
-        stop:0 {t.sheen},stop:0.10 {t.raised},stop:0.86 {t.surface_alt},stop:1 {t.surface_alt});
+        stop:0 {rgba(t.sheen, bar_alpha)},stop:0.12 {rgba(t.raised, bar_alpha)},
+        stop:0.86 {rgba(t.surface_alt, bar_alpha)},stop:1 {rgba(t.surface_alt, bar_alpha)});
     border: none; border-bottom: 1px solid {t.border};
 }}
 QLabel#brand {{ color: {y}; font-size: 25px; font-weight: 800; }}
@@ -109,15 +137,15 @@ QLabel#brandNote {{ color: {pink_bright}; font-size: 10px; font-weight: 600; }}
 QLabel#sectionTitle {{ color: {pink_bright}; font-size: 11px; font-weight: 800; }}
 QLabel#hint {{ color: {t.muted}; font-size: 11px; }}
 QFrame#sidebar {{
-    background: {t.surface_alt}; border: none;
-    border-right: 1px solid {t.border};
+    background: {rgba(t.surface_alt, sidebar_alpha)}; border: none;
+    border-right: 1px solid {rgba(t.border, 0.65)};
 }}
 QFrame#panel, QFrame#responsePanel {{
-    background: {t.surface}; border: 1px solid {t.border}; border-radius: 19px;
+    background: {rgba(t.surface, panel_alpha)}; border: 1px solid {rgba(t.border, 0.65)}; border-radius: 19px;
 }}
 QLineEdit, QPlainTextEdit, QTextEdit, QComboBox, QSpinBox, QDoubleSpinBox,
 QTableWidget {{
-    background: {t.field}; color: {t.text}; border: 1px solid {t.border};
+    background: {rgba(t.field, field_alpha)}; color: {t.text}; border: 1px solid {rgba(t.border, 0.80)};
     border-radius: 11px; padding: 8px 11px;
     selection-background-color: {t.secondary}; selection-color: {t.secondary_ink};
 }}
@@ -133,7 +161,7 @@ QPlainTextEdit, QTextEdit {{
 }}
 QComboBox {{ padding-right: 30px; }}
 QComboBox#methodSelector {{
-    background: {t.raised}; border: 1px solid {p};
+    background: {rgba(t.raised, field_alpha)}; border: 1px solid {p};
     color: {y}; font-weight: 800; border-radius: 13px;
 }}
 QComboBox::drop-down {{ border: none; width: 27px; }}
@@ -147,12 +175,12 @@ QComboBox QAbstractItemView::item {{
     padding: 7px 11px; border-radius: 7px; min-height: 29px;
 }}
 QPushButton {{
-    color: {t.text}; background: {t.raised};
+    color: {t.text}; background: {rgba(t.raised, bar_alpha)};
     border: 1px solid {t.border}; border-radius: 12px;
     padding: 8px 16px; font-weight: 650;
 }}
-QPushButton:hover {{ background: {t.hover}; border: 1px solid {p}; }}
-QPushButton:pressed {{ background: {t.selected}; border: 1px solid {y}; }}
+QPushButton:hover {{ background: {rgba(t.hover, 0.91)}; border: 1px solid {p}; }}
+QPushButton:pressed {{ background: {rgba(t.selected, 0.92)}; border: 1px solid {y}; }}
 QPushButton:focus {{ border: 2px solid {y}; }}
 QPushButton:disabled {{
     color: {t.muted}; background: {t.surface_alt}; border: 1px solid {t.border};
@@ -180,16 +208,16 @@ QTabBar::tab {{
     border: 1px solid transparent; border-radius: 12px; font-weight: 650;
 }}
 QTabBar::tab:selected {{
-    background: {t.selected}; color: {y};
-    border: 1px solid {blend(t.border, p, 0.5)};
+    background: {rgba(t.selected, tab_alpha)}; color: {y};
+    border: 1px solid {rgba(blend(t.border, p, 0.5), 0.6)};
     font-weight: 800;
 }}
-QTabBar::tab:hover:!selected {{ background: {t.hover}; color: {t.text}; }}
+QTabBar::tab:hover:!selected {{ background: {rgba(t.hover, tab_alpha)}; color: {t.text}; }}
 QHeaderView::section {{
-    background: {t.raised}; color: {t.text}; border: none;
+    background: {rgba(t.raised, field_alpha)}; color: {t.text}; border: none;
     border-bottom: 1px solid {t.border}; padding: 9px 12px; font-weight: 700;
 }}
-QTableWidget {{ gridline-color: {t.border}; alternate-background-color: {t.surface_alt}; padding: 0; }}
+QTableWidget {{ gridline-color: {rgba(t.border, 0.5)}; alternate-background-color: {rgba(t.surface_alt, field_alpha)}; padding: 0; }}
 QTableWidget::item {{ padding: 5px; }}
 QTableWidget::item:selected {{ background: {t.selected}; color: {t.text}; }}
 QCheckBox {{ spacing: 10px; color: {t.text}; background: transparent; }}
@@ -197,9 +225,9 @@ QCheckBox::indicator {{ width: 19px; height: 19px; }}
 QListWidget {{ background: transparent; border: none; outline: none; }}
 QListWidget::item {{ padding: 10px 12px; border-radius: 9px; margin: 2px; }}
 QListWidget::item:selected {{
-    background: {t.selected}; color: {y}; border-left: 3px solid {y};
+    background: {rgba(t.selected, 0.82)}; color: {y}; border-left: 3px solid {y};
 }}
-QListWidget::item:hover:!selected {{ background: {t.hover}; }}
+QListWidget::item:hover:!selected {{ background: {rgba(t.hover, 0.70)}; }}
 QSplitter::handle {{ background: transparent; }}
 QScrollBar:vertical {{ background: transparent; width: 11px; margin: 2px 1px; }}
 QScrollBar::handle:vertical {{ background: {t.border}; border-radius: 5px; min-height: 28px; }}
@@ -208,7 +236,13 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
 QScrollBar:horizontal {{ background: transparent; height: 11px; }}
 QScrollBar::handle:horizontal {{ background: {t.border}; border-radius: 5px; min-width: 28px; }}
 QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0; }}
-QStatusBar {{ background: {t.surface_alt}; color: {t.muted}; border-top: 1px solid {t.border}; }}
+QStatusBar {{ background: {rgba(t.surface_alt, bar_alpha)}; color: {t.muted}; border-top: 1px solid {rgba(t.border, 0.55)}; }}
+QSlider::groove:horizontal {{ height: 6px; background: {rgba(t.field, field_alpha)}; border-radius: 3px; }}
+QSlider::sub-page:horizontal {{ background: {p}; border-radius: 3px; }}
+QSlider::handle:horizontal {{
+    background: {y}; width: 17px; margin: -7px 0; border-radius: 8px;
+    border: 2px solid {t.surface};
+}}
 QToolTip {{
     background: {raised_light}; color: {t.text}; border: 1px solid {p};
     border-radius: 9px; padding: 7px 10px;
